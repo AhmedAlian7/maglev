@@ -744,7 +744,7 @@ WHERE
 ORDER BY
     st.arrival_time LIMIT 50;
 -- name: GetTripsByServiceID :many
-SELECT *
+SELECT id, route_id, service_id, trip_headsign
 FROM trips
 WHERE service_id IN (sqlc.slice('service_ids'));
 
@@ -958,7 +958,8 @@ WHERE bte.block_trip_index_id IN (sqlc.slice('index_ids'))
 
 
 -- name: GetShapePointsByIDs :many
-SELECT * FROM shapes
+SELECT shape_id, lat, lon, shape_pt_sequence, shape_dist_traveled
+FROM shapes
 WHERE shape_id IN (sqlc.slice('shape_ids'))
 ORDER BY shape_id, shape_pt_sequence;
 
@@ -975,3 +976,24 @@ WHERE t.block_id IN (sqlc.slice('block_ids'))
   AND t.service_id IN (sqlc.slice('service_ids'))
 GROUP BY t.id
 ORDER BY t.block_id, MIN(st.departure_time), t.id;
+
+-- name: SearchStopsByName :many
+SELECT
+    s.id,
+    s.code,
+    s.name,
+    s.lat,
+    s.lon,
+    s.location_type,
+    s.wheelchair_boarding,
+    s.direction,
+    s.parent_station  
+FROM stops s
+JOIN stops_fts fts
+  ON s.rowid = fts.rowid  
+WHERE fts.stop_name MATCH sqlc.arg(search_query)
+ORDER BY s.name
+LIMIT sqlc.arg(limit);
+
+-- name: SearchRoutesByFullText :many
+SELECT r.* FROM routes r JOIN routes_fts fts ON r.rowid = fts.rowid WHERE (fts.short_name MATCH sqlc.arg(query) OR fts.long_name MATCH sqlc.arg(query) OR fts."desc" MATCH sqlc.arg(query)) ORDER BY r.short_name LIMIT sqlc.arg(limit);

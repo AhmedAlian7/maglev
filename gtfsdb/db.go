@@ -276,6 +276,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listTripsStmt, err = db.PrepareContext(ctx, listTrips); err != nil {
 		return nil, fmt.Errorf("error preparing query ListTrips: %w", err)
 	}
+	if q.searchRoutesByFullTextStmt, err = db.PrepareContext(ctx, searchRoutesByFullText); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchRoutesByFullText: %w", err)
+	}
+	if q.searchStopsByNameStmt, err = db.PrepareContext(ctx, searchStopsByName); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchStopsByName: %w", err)
+	}
 	if q.updateStopDirectionStmt, err = db.PrepareContext(ctx, updateStopDirection); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateStopDirection: %w", err)
 	}
@@ -707,6 +713,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listTripsStmt: %w", cerr)
 		}
 	}
+	if q.searchRoutesByFullTextStmt != nil {
+		if cerr := q.searchRoutesByFullTextStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchRoutesByFullTextStmt: %w", cerr)
+		}
+	}
+	if q.searchStopsByNameStmt != nil {
+		if cerr := q.searchStopsByNameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchStopsByNameStmt: %w", cerr)
+		}
+	}
 	if q.updateStopDirectionStmt != nil {
 		if cerr := q.updateStopDirectionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateStopDirectionStmt: %w", cerr)
@@ -840,6 +856,8 @@ type Queries struct {
 	listRoutesStmt                            *sql.Stmt
 	listStopsStmt                             *sql.Stmt
 	listTripsStmt                             *sql.Stmt
+	searchRoutesByFullTextStmt                *sql.Stmt
+	searchStopsByNameStmt                     *sql.Stmt
 	updateStopDirectionStmt                   *sql.Stmt
 	upsertImportMetadataStmt                  *sql.Stmt
 }
@@ -932,6 +950,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listRoutesStmt:                            q.listRoutesStmt,
 		listStopsStmt:                             q.listStopsStmt,
 		listTripsStmt:                             q.listTripsStmt,
+		searchRoutesByFullTextStmt:                q.searchRoutesByFullTextStmt,
+		searchStopsByNameStmt:                     q.searchStopsByNameStmt,
 		updateStopDirectionStmt:                   q.updateStopDirectionStmt,
 		upsertImportMetadataStmt:                  q.upsertImportMetadataStmt,
 	}

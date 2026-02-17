@@ -2130,12 +2130,21 @@ func (q *Queries) GetShapePointWindow(ctx context.Context, shapeID string) ([]Ge
 }
 
 const getShapePointsByIDs = `-- name: GetShapePointsByIDs :many
-SELECT id, shape_id, lat, lon, shape_pt_sequence, shape_dist_traveled FROM shapes
+SELECT shape_id, lat, lon, shape_pt_sequence, shape_dist_traveled
+FROM shapes
 WHERE shape_id IN (/*SLICE:shape_ids*/?)
 ORDER BY shape_id, shape_pt_sequence
 `
 
-func (q *Queries) GetShapePointsByIDs(ctx context.Context, shapeIds []string) ([]Shape, error) {
+type GetShapePointsByIDsRow struct {
+	ShapeID           string
+	Lat               float64
+	Lon               float64
+	ShapePtSequence   int64
+	ShapeDistTraveled sql.NullFloat64
+}
+
+func (q *Queries) GetShapePointsByIDs(ctx context.Context, shapeIds []string) ([]GetShapePointsByIDsRow, error) {
 	query := getShapePointsByIDs
 	var queryParams []interface{}
 	if len(shapeIds) > 0 {
@@ -2151,11 +2160,10 @@ func (q *Queries) GetShapePointsByIDs(ctx context.Context, shapeIds []string) ([
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Shape
+	var items []GetShapePointsByIDsRow
 	for rows.Next() {
-		var i Shape
+		var i GetShapePointsByIDsRow
 		if err := rows.Scan(
-			&i.ID,
 			&i.ShapeID,
 			&i.Lat,
 			&i.Lon,
@@ -3497,12 +3505,19 @@ func (q *Queries) GetTripsByIDs(ctx context.Context, tripIds []string) ([]Trip, 
 }
 
 const getTripsByServiceID = `-- name: GetTripsByServiceID :many
-SELECT id, route_id, service_id, trip_headsign, trip_short_name, direction_id, block_id, shape_id, wheelchair_accessible, bikes_allowed
+SELECT id, route_id, service_id, trip_headsign
 FROM trips
 WHERE service_id IN (/*SLICE:service_ids*/?)
 `
 
-func (q *Queries) GetTripsByServiceID(ctx context.Context, serviceIds []string) ([]Trip, error) {
+type GetTripsByServiceIDRow struct {
+	ID           string
+	RouteID      string
+	ServiceID    string
+	TripHeadsign sql.NullString
+}
+
+func (q *Queries) GetTripsByServiceID(ctx context.Context, serviceIds []string) ([]GetTripsByServiceIDRow, error) {
 	query := getTripsByServiceID
 	var queryParams []interface{}
 	if len(serviceIds) > 0 {
@@ -3518,20 +3533,14 @@ func (q *Queries) GetTripsByServiceID(ctx context.Context, serviceIds []string) 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Trip
+	var items []GetTripsByServiceIDRow
 	for rows.Next() {
-		var i Trip
+		var i GetTripsByServiceIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.RouteID,
 			&i.ServiceID,
 			&i.TripHeadsign,
-			&i.TripShortName,
-			&i.DirectionID,
-			&i.BlockID,
-			&i.ShapeID,
-			&i.WheelchairAccessible,
-			&i.BikesAllowed,
 		); err != nil {
 			return nil, err
 		}
@@ -3821,6 +3830,119 @@ func (q *Queries) ListTrips(ctx context.Context) ([]Trip, error) {
 			&i.ShapeID,
 			&i.WheelchairAccessible,
 			&i.BikesAllowed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchRoutesByFullText = `-- name: SearchRoutesByFullText :many
+SELECT r.id, r.agency_id, r.short_name, r.long_name, r."desc", r.type, r.url, r.color, r.text_color, r.continuous_pickup, r.continuous_drop_off FROM routes r JOIN routes_fts fts ON r.rowid = fts.rowid WHERE (fts.short_name MATCH ?1 OR fts.long_name MATCH ?1 OR fts."desc" MATCH ?1) ORDER BY r.short_name LIMIT ?2
+`
+
+type SearchRoutesByFullTextParams struct {
+	Query string
+	Limit int64
+}
+
+func (q *Queries) SearchRoutesByFullText(ctx context.Context, arg SearchRoutesByFullTextParams) ([]Route, error) {
+	rows, err := q.query(ctx, q.searchRoutesByFullTextStmt, searchRoutesByFullText, arg.Query, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Route
+	for rows.Next() {
+		var i Route
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgencyID,
+			&i.ShortName,
+			&i.LongName,
+			&i.Desc,
+			&i.Type,
+			&i.Url,
+			&i.Color,
+			&i.TextColor,
+			&i.ContinuousPickup,
+			&i.ContinuousDropOff,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchStopsByName = `-- name: SearchStopsByName :many
+SELECT
+    s.id,
+    s.code,
+    s.name,
+    s.lat,
+    s.lon,
+    s.location_type,
+    s.wheelchair_boarding,
+    s.direction,
+    s.parent_station  
+FROM stops s
+JOIN stops_fts fts
+  ON s.rowid = fts.rowid  
+WHERE fts.stop_name MATCH ?1
+ORDER BY s.name
+LIMIT ?2
+`
+
+type SearchStopsByNameParams struct {
+	SearchQuery string
+	Limit       int64
+}
+
+type SearchStopsByNameRow struct {
+	ID                 string
+	Code               sql.NullString
+	Name               sql.NullString
+	Lat                float64
+	Lon                float64
+	LocationType       sql.NullInt64
+	WheelchairBoarding sql.NullInt64
+	Direction          sql.NullString
+	ParentStation      sql.NullString
+}
+
+func (q *Queries) SearchStopsByName(ctx context.Context, arg SearchStopsByNameParams) ([]SearchStopsByNameRow, error) {
+	rows, err := q.query(ctx, q.searchStopsByNameStmt, searchStopsByName, arg.SearchQuery, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchStopsByNameRow
+	for rows.Next() {
+		var i SearchStopsByNameRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Lat,
+			&i.Lon,
+			&i.LocationType,
+			&i.WheelchairBoarding,
+			&i.Direction,
+			&i.ParentStation,
 		); err != nil {
 			return nil, err
 		}
