@@ -156,6 +156,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getProblemReportsByTripStmt, err = db.PrepareContext(ctx, getProblemReportsByTrip); err != nil {
 		return nil, fmt.Errorf("error preparing query GetProblemReportsByTrip: %w", err)
 	}
+	if q.getRecentProblemReportsStopStmt, err = db.PrepareContext(ctx, getRecentProblemReportsStop); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentProblemReportsStop: %w", err)
+	}
+	if q.getRecentProblemReportsTripStmt, err = db.PrepareContext(ctx, getRecentProblemReportsTrip); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentProblemReportsTrip: %w", err)
+	}
 	if q.getRouteStmt, err = db.PrepareContext(ctx, getRoute); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRoute: %w", err)
 	}
@@ -522,6 +528,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getProblemReportsByTripStmt: %w", cerr)
 		}
 	}
+	if q.getRecentProblemReportsStopStmt != nil {
+		if cerr := q.getRecentProblemReportsStopStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentProblemReportsStopStmt: %w", cerr)
+		}
+	}
+	if q.getRecentProblemReportsTripStmt != nil {
+		if cerr := q.getRecentProblemReportsTripStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentProblemReportsTripStmt: %w", cerr)
+		}
+	}
 	if q.getRouteStmt != nil {
 		if cerr := q.getRouteStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getRouteStmt: %w", cerr)
@@ -840,6 +856,8 @@ type Queries struct {
 	getOrderedStopIDsForTripStmt              *sql.Stmt
 	getProblemReportsByStopStmt               *sql.Stmt
 	getProblemReportsByTripStmt               *sql.Stmt
+	getRecentProblemReportsStopStmt           *sql.Stmt
+	getRecentProblemReportsTripStmt           *sql.Stmt
 	getRouteStmt                              *sql.Stmt
 	getRouteIDsForAgencyStmt                  *sql.Stmt
 	getRouteIDsForStopStmt                    *sql.Stmt
@@ -937,6 +955,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getOrderedStopIDsForTripStmt:              q.getOrderedStopIDsForTripStmt,
 		getProblemReportsByStopStmt:               q.getProblemReportsByStopStmt,
 		getProblemReportsByTripStmt:               q.getProblemReportsByTripStmt,
+		getRecentProblemReportsStopStmt:           q.getRecentProblemReportsStopStmt,
+		getRecentProblemReportsTripStmt:           q.getRecentProblemReportsTripStmt,
 		getRouteStmt:                              q.getRouteStmt,
 		getRouteIDsForAgencyStmt:                  q.getRouteIDsForAgencyStmt,
 		getRouteIDsForStopStmt:                    q.getRouteIDsForStopStmt,

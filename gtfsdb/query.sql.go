@@ -1662,6 +1662,99 @@ func (q *Queries) GetProblemReportsByTrip(ctx context.Context, tripID string) ([
 	return items, nil
 }
 
+const getRecentProblemReportsStop = `-- name: GetRecentProblemReportsStop :many
+SELECT id, stop_id, code, user_comment, user_lat, user_lon, user_location_accuracy, created_at, submitted_at FROM problem_reports_stop
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type GetRecentProblemReportsStopParams struct {
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) GetRecentProblemReportsStop(ctx context.Context, arg GetRecentProblemReportsStopParams) ([]ProblemReportsStop, error) {
+	rows, err := q.query(ctx, q.getRecentProblemReportsStopStmt, getRecentProblemReportsStop, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProblemReportsStop
+	for rows.Next() {
+		var i ProblemReportsStop
+		if err := rows.Scan(
+			&i.ID,
+			&i.StopID,
+			&i.Code,
+			&i.UserComment,
+			&i.UserLat,
+			&i.UserLon,
+			&i.UserLocationAccuracy,
+			&i.CreatedAt,
+			&i.SubmittedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecentProblemReportsTrip = `-- name: GetRecentProblemReportsTrip :many
+SELECT id, trip_id, service_date, vehicle_id, stop_id, code, user_comment, user_lat, user_lon, user_location_accuracy, user_on_vehicle, user_vehicle_number, created_at, submitted_at FROM problem_reports_trip
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type GetRecentProblemReportsTripParams struct {
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) GetRecentProblemReportsTrip(ctx context.Context, arg GetRecentProblemReportsTripParams) ([]ProblemReportsTrip, error) {
+	rows, err := q.query(ctx, q.getRecentProblemReportsTripStmt, getRecentProblemReportsTrip, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProblemReportsTrip
+	for rows.Next() {
+		var i ProblemReportsTrip
+		if err := rows.Scan(
+			&i.ID,
+			&i.TripID,
+			&i.ServiceDate,
+			&i.VehicleID,
+			&i.StopID,
+			&i.Code,
+			&i.UserComment,
+			&i.UserLat,
+			&i.UserLon,
+			&i.UserLocationAccuracy,
+			&i.UserOnVehicle,
+			&i.UserVehicleNumber,
+			&i.CreatedAt,
+			&i.SubmittedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRoute = `-- name: GetRoute :one
 SELECT
     id, agency_id, short_name, long_name, "desc", type, url, color, text_color, continuous_pickup, continuous_drop_off

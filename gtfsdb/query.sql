@@ -1013,3 +1013,13 @@ ORDER BY created_at DESC;
 SELECT * FROM problem_reports_stop
 WHERE stop_id = ?
 ORDER BY created_at DESC;
+
+-- name: GetRecentProblemReportsTrip :many
+SELECT * FROM problem_reports_trip
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: GetRecentProblemReportsStop :many
+SELECT * FROM problem_reports_stop
+ORDER BY created_at DESC
+LIMIT ? OFFSET ?;
